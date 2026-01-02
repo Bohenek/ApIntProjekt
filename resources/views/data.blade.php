@@ -15,16 +15,11 @@
                     onkeydown="if(event.key === 'Enter' || event.key === ' ') { showData(this, 'content-{{ $item->id }}'); event.preventDefault(); }"
                     tabindex="0"
                     role="option"
-                    aria-selected="{{ $loop->first ? 'true' : 'false' }}"
-                    
-                    class="data-row px-2 cursor-pointer flex items-center
-                           border border-transparent outline-none
-                           hover:bg-[var(--pip-green)] hover:text-black
-                           focus:bg-[var(--pip-dim)] focus:border-[var(--pip-green)]
-                           {{ $loop->first ? 'bg-[var(--pip-green)] text-black active-data' : '' }}">
+                    aria-selected="false"
+                    class="data-row px-2 cursor-pointer flex items-center border border-transparent outline-none hover:bg-[var(--pip-green)] hover:text-black focus:bg-[var(--pip-dim)] focus:border-[var(--pip-green)]">
                     
                     @if($tab == 'quests') 
-                        <span class="mr-2 inline-block w-3 h-3 bg-current square-bullet {{ $loop->first ? 'opacity-100' : 'opacity-0' }}"></span>
+                        <span class="mr-2 inline-block w-3 h-3 bg-current square-bullet opacity-0"></span>
                     @endif
                     
                     <span class="truncate">{{ $item->title }}</span>
@@ -37,10 +32,16 @@
             
             @if($items->isEmpty())
                 <p>No data found.</p>
+            @else
+                <div id="empty-state" class="flex h-full items-center justify-center opacity-50">
+                    <div class="text-center border border-[var(--pip-green)] p-4">
+                        <p class="uppercase tracking-widest blink">SELECT ENTRY</p>
+                    </div>
+                </div>
             @endif
 
             @foreach($items as $item)
-                <div id="content-{{ $item->id }}" class="data-content {{ $loop->first ? '' : 'hidden' }}">
+                <div id="content-{{ $item->id }}" class="data-content hidden">
                     
                     @if($tab == 'quests')
                         <div class="text-right text-sm mb-4 opacity-80 uppercase tracking-widest">Show Location</div>
@@ -53,11 +54,11 @@
                                 <span class="border border-[var(--pip-green)] w-4 h-4 block flex-shrink-0 relative mt-1">
                                     <span class="absolute inset-0.5 bg-[var(--pip-green)]"></span>
                                 </span>
-                                <span>Quest objective completed.</span>
+                                <span>Objective completed.</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <span class="border border-[var(--pip-green)] w-4 h-4 block flex-shrink-0 mt-1"></span>
-                                <span>Current objective for {{ $item->title }}.</span>
+                                <span>Current objective active.</span>
                             </li>
                         </ul>
 
@@ -65,10 +66,24 @@
                         <div class="text-right text-sm mb-4 opacity-80 uppercase">Audio/Text</div>
                         <h3 class="text-lg mb-4 uppercase font-bold">> {{ $item->title }}</h3>
                         
-                        <div class="text-xl leading-relaxed whitespace-pre-wrap">
-{{ $item->content }}
-                        </div>
-                        <div class="mt-8 opacity-70 text-right">-- END OF MESSAGE --</div>
+                        @if(Auth::check() && Auth::user()->is_admin)
+                            <form action="{{ route('notes.update', $item->id) }}" method="POST">
+                                @csrf
+                                @method('PUT')
+                                <textarea name="content" 
+                                          class="w-full h-64 bg-black/30 border border-[var(--pip-green)] text-[var(--pip-green)] p-2 text-lg focus:outline-none focus:bg-[var(--pip-dim)]"
+                                >{{ $item->content }}</textarea>
+                                
+                                <div class="flex justify-end mt-2">
+                                    <button type="submit" class="border border-[var(--pip-green)] px-4 py-1 hover:bg-[var(--pip-green)] hover:text-black uppercase text-sm font-bold">
+                                        Save Override
+                                    </button>
+                                </div>
+                            </form>
+                        @else
+                            <div class="text-xl leading-relaxed whitespace-pre-wrap">{{ $item->content }}</div>
+                            <div class="mt-8 opacity-70 text-right">-- END OF MESSAGE --</div>
+                        @endif
                     @endif
                 </div>
             @endforeach
@@ -77,22 +92,11 @@
     </div>
 
     <div class="flex justify-between text-lg uppercase border-t-2 border-[var(--pip-green)] pt-1" role="tablist">
-        <a href="#" class="opacity-50 hover:text-[var(--pip-green)]" role="tab" aria-disabled="true">Local Map</a>
-        <a href="#" class="opacity-50 hover:text-[var(--pip-green)]" role="tab" aria-disabled="true">World Map</a>
-        
-        <a href="?tab=quests" role="tab" aria-selected="{{ $tab == 'quests' ? 'true' : 'false' }}"
-           class="focus:outline-none focus:bg-[var(--pip-dim)] focus:border focus:border-[var(--pip-green)]
-                  {{ $tab == 'quests' ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:opacity-100' }}">
-           Quests
-        </a>
-        
-        <a href="?tab=notes" role="tab" aria-selected="{{ $tab == 'notes' ? 'true' : 'false' }}"
-           class="focus:outline-none focus:bg-[var(--pip-dim)] focus:border focus:border-[var(--pip-green)]
-                  {{ $tab == 'notes' ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:opacity-100' }}">
-           Notes
-        </a>
-        
-        <a href="#" class="opacity-50 hover:text-[var(--pip-green)]" role="tab" aria-disabled="true">Radio</a>
+        <a href="#" class="opacity-50 hover:text-[var(--pip-green)]">Local Map</a>
+        <a href="#" class="opacity-50 hover:text-[var(--pip-green)]">World Map</a>
+        <a href="?tab=quests" class="{{ $tab == 'quests' ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:opacity-100' }}">Quests</a>
+        <a href="?tab=notes" class="{{ $tab == 'notes' ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:opacity-100' }}">Notes</a>
+        <a href="#" class="opacity-50 hover:text-[var(--pip-green)]">Radio</a>
     </div>
 
 </div>
@@ -113,14 +117,20 @@
         const bullet = el.querySelector('.square-bullet');
         if(bullet) bullet.classList.remove('opacity-0');
 
+        const emptyState = document.getElementById('empty-state');
+        if(emptyState) emptyState.classList.add('hidden');
+
         document.querySelectorAll('.data-content').forEach(div => {
             div.classList.add('hidden');
         });
         
         const content = document.getElementById(contentId);
-        if(content) {
-            content.classList.remove('hidden');
-        }
+        if(content) content.classList.remove('hidden');
     }
 </script>
+
+<style>
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .blink { animation: blink 2s infinite; }
+</style>
 @endsection

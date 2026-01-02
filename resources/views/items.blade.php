@@ -19,30 +19,40 @@
                 @endphp
 
                 @foreach($currentItems as $index => $item)
-                    <li onclick="selectItem(this)"
-                        onkeydown="if(event.key === 'Enter' || event.key === ' ') { selectItem(this); event.preventDefault(); }"
-                        tabindex="0"
-                        role="option"
-                        aria-selected="{{ $loop->first ? 'true' : 'false' }}"
+                    <div class="flex group hover:bg-[var(--pip-green)] hover:text-black focus-within:bg-[var(--pip-green)] focus-within:text-black {{ $loop->first ? 'bg-[var(--pip-green)] text-black active-item' : '' }}">
                         
-                        class="item-row group flex justify-between px-2 py-0.5 cursor-pointer 
-                               border border-transparent outline-none
-                               hover:bg-[var(--pip-green)] hover:text-black 
-                               focus:bg-[var(--pip-dim)] focus:border-[var(--pip-green)]
-                               {{ $loop->first ? 'bg-[var(--pip-green)] text-black active-item' : '' }}"
+                        <li onclick="selectItem(this)"
+                            onkeydown="if(event.key === 'Enter' || event.key === ' ') { selectItem(this); event.preventDefault(); }"
+                            tabindex="0"
+                            role="option"
+                            class="item-row flex-1 flex justify-between px-2 py-0.5 cursor-pointer outline-none"
+                            
+                            data-name="{{ $item->name }}"
+                            data-wg="{{ $item->weight ?? 0 }}"
+                            data-val="{{ $item->value ?? 0 }}"
+                            data-stat="{{ $tab == 'weapons' ? ($item->damage ?? 0) : ($tab == 'apparel' ? ($item->dr ?? 0) : ($item->effect ?? '-')) }}"
+                            data-cond="{{ $item->condition ?? 100 }}"
+                            >
+                            
+                            <span class="truncate">{{ $item->name }}</span>
+                            @if(isset($item->quantity))
+                                <span>({{ $item->quantity }})</span>
+                            @endif
+                        </li>
 
-                        data-name="{{ $item->name }}"
-                        data-wg="{{ $item->weight ?? 0 }}"
-                        data-val="{{ $item->value ?? 0 }}"
-                        data-stat="{{ $tab == 'weapons' ? ($item->damage ?? 0) : ($tab == 'apparel' ? ($item->dr ?? 0) : ($item->effect ?? '-')) }}"
-                        data-cond="{{ $item->condition ?? 100 }}"
-                        >
-                        
-                        <span class="truncate">{{ $item->name }}</span>
-                        @if(isset($item->quantity))
-                            <span>({{ $item->quantity }})</span>
+                        @if(Auth::check() && Auth::user()->is_admin)
+                            <form action="{{ route('items.delete', $item->id) }}" method="POST" class="border-l border-black/20 flex items-center">
+                                @csrf
+                                @method('DELETE')
+                                <input type="hidden" name="type" value="{{ $tab }}">
+                                <button type="submit" 
+                                        class="px-2 h-full text-xs font-bold hover:bg-red-600 hover:text-white focus:bg-red-600 focus:text-white focus:outline-none"
+                                        title="Delete Item">
+                                    [DEL]
+                                </button>
+                            </form>
                         @endif
-                    </li>
+                    </div>
                 @endforeach
             </ul>
         </div>
@@ -55,7 +65,6 @@
             </div>
 
             <div class="w-full text-lg mt-auto mb-4 uppercase">
-                
                 <div class="grid grid-cols-3 border-t-2 border-b-2 border-[var(--pip-green)] mb-2">
                     <div class="p-1 border-r border-[var(--pip-green)]">
                         @if($tab == 'weapons') DAM 
@@ -92,10 +101,7 @@
     <div class="flex justify-between text-lg uppercase border-t-2 border-[var(--pip-green)] pt-1" role="tablist">
         @foreach(['weapons', 'apparel', 'aid', 'misc', 'ammo'] as $cat)
             <a href="?tab={{ $cat }}" 
-               role="tab"
-               aria-selected="{{ $tab == $cat ? 'true' : 'false' }}"
-               class="focus:outline-none focus:bg-[var(--pip-dim)] focus:border focus:border-[var(--pip-green)]
-                      {{ $tab == $cat ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:text-[var(--pip-green)] hover:opacity-100' }}">
+               class="{{ $tab == $cat ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:text-[var(--pip-green)] hover:opacity-100' }}">
                {{ ucfirst($cat) }}
             </a>
         @endforeach
@@ -104,14 +110,16 @@
 
 <script>
     function selectItem(el) {
+        // Resetowanie styli w wierszach (tylko w części li)
         document.querySelectorAll('.item-row').forEach(li => {
-            li.classList.remove('bg-[var(--pip-green)]', 'text-black', 'active-item');
-            li.setAttribute('aria-selected', 'false');
+            // Usuwamy klasy z elementu li
+            // (Rodzic div obsługuje hover, ale active musimy obsłużyć JS lub CSS)
+            li.parentElement.classList.remove('bg-[var(--pip-green)]', 'text-black', 'active-item');
         });
 
-        el.classList.add('bg-[var(--pip-green)]', 'text-black', 'active-item');
-        el.setAttribute('aria-selected', 'true');
-        el.focus(); 
+        // Aktywacja rodzica (div)
+        el.parentElement.classList.add('bg-[var(--pip-green)]', 'text-black', 'active-item');
+        el.focus();
 
         const wg = el.getAttribute('data-wg');
         const val = el.getAttribute('data-val');
@@ -124,9 +132,7 @@
         if(document.getElementById('detail-effect-text')) document.getElementById('detail-effect-text').innerText = stat;
         
         const cndBar = document.getElementById('detail-cnd');
-        if(cndBar) {
-            cndBar.style.width = cond + '%';
-        }
+        if(cndBar) cndBar.style.width = cond + '%';
     }
 </script>
 @endsection

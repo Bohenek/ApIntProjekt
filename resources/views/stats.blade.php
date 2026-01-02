@@ -1,40 +1,57 @@
 @extends('layout')
 
 @section('content')
-<div class="h-full flex flex-col relative text-[var(--pip-green)]">
+<div class="h-full flex flex-col relative text-[var(--pip-green)] tracking-wide">
 
     <div class="flex-1 flex pb-8 overflow-hidden">
-        <div class="w-1/2 pr-4 overflow-y-auto">
+        <div class="w-1/2 pr-4 overflow-y-auto border-r border-[var(--pip-green)]/30">
             <ul class="space-y-1" role="listbox">
                 @php
                     $listItems = match($tab) {
                         'special' => $specials,
                         'skills' => $skills,
                         'perks' => $perks,
+                        'general' => $users,
                         default => collect()
                     };
                 @endphp
 
                 @if($tab == 'status')
-                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30">Vault Dweller - Level 16</li>
-                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30">HP: 320/350</li>
-                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30">AP: 85/85</li>
-                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30">XP: 14500/18000</li>
+                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30 flex justify-between">
+                        <span>USER</span> <span>{{ Auth::check() ? Auth::user()->name : 'GUEST' }}</span>
+                    </li>
+                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30 flex justify-between">
+                        <span>LEVEL</span> <span>16</span>
+                    </li>
+                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30 flex justify-between">
+                        <span>HP</span> <span>320/350</span>
+                    </li>
+                    <li class="px-2 py-1 border-b border-[var(--pip-green)]/30 flex justify-between">
+                        <span>XP</span> <span>14500</span>
+                    </li>
+
+                @elseif($tab == 'general')
+                    <div class="px-2 py-2 text-sm uppercase opacity-70 mb-2 border-b border-[var(--pip-green)]">Select Terminal User:</div>
+                    
+                    @foreach($users as $user)
+                        <a href="{{ route('login.sim', $user->id) }}" 
+                           class="block px-2 py-1 border border-transparent hover:bg-[var(--pip-green)] hover:text-black cursor-pointer flex justify-between items-center group
+                                  {{ (Auth::id() == $user->id) ? 'bg-[var(--pip-green)] text-black' : '' }}">
+                            <span>{{ $user->name }}</span>
+                            @if($user->is_admin)
+                                <span class="text-xs border border-current px-1 group-hover:border-black font-bold">★ OVERSEER</span>
+                            @endif
+                        </a>
+                    @endforeach
+
                 @else
                     @foreach($listItems as $item)
                         <li onclick="selectStat(this)"
                             onkeydown="if(event.key === 'Enter' || event.key === ' ') { selectStat(this); event.preventDefault(); }"
                             tabindex="0"
                             role="option"
-                            aria-selected="{{ $loop->first ? 'true' : 'false' }}"
-                            
-                            class="stat-row flex justify-between px-2 cursor-pointer 
-                                   border border-transparent outline-none
-                                   hover:bg-[var(--pip-green)] hover:text-black
-                                   focus:bg-[var(--pip-dim)] focus:border-[var(--pip-green)]
-                                   group {{ $loop->first ? 'bg-[var(--pip-green)] text-black' : '' }}"
-                            
-                            data-desc="{{ $item->description ?? ($item->name . ' governs your general capability.') }}">
+                            class="stat-row flex justify-between px-2 cursor-pointer border border-transparent outline-none hover:bg-[var(--pip-green)] hover:text-black focus:bg-[var(--pip-dim)] focus:border-[var(--pip-green)] group {{ $loop->first ? 'bg-[var(--pip-green)] text-black' : '' }}"
+                            data-desc="{{ $item->description ?? ($item->name . ' information.') }}">
                             
                             <span>{{ $item->name }}</span>
                             @if(isset($item->value))
@@ -54,18 +71,24 @@
                      <path d="M 30 65 Q 50 85 70 65" stroke="currentColor" stroke-width="3" fill="none" />
                      <circle cx="35" cy="40" r="5" />
                      <circle cx="65" cy="40" r="5" />
-                     </svg>
+                </svg>
             </div>
 
-            <div class="border border-[var(--pip-green)] p-2 text-sm mt-auto w-full relative bg-black/50 min-h-[100px]">
+            <div class="border border-[var(--pip-green)] p-2 text-sm mt-auto w-full relative bg-black/80 min-h-[100px]">
                 <div class="absolute -top-2 left-0 border-l border-t border-[var(--pip-green)] w-4 h-4"></div>
                 <div class="absolute -bottom-2 right-0 border-r border-b border-[var(--pip-green)] w-4 h-4"></div>
                 
                 <p id="stat-description">
-                    @if($listItems->isNotEmpty())
-                        {{ $listItems->first()->description ?? ($listItems->first()->name . ' information.') }}
-                    @else
-                        System functioning normally.
+                    @if($tab == 'general')
+                        @if(Auth::check() && Auth::user()->is_admin)
+                            <strong>ACCESS GRANTED:</strong> Administrator clearance recognized. Database modification enabled.
+                        @else
+                            <strong>ACCESS RESTRICTED:</strong> Standard user privileges. Read-only mode active.
+                        @endif
+                    @elseif($tab == 'status')
+                        Vault-Tec System V. 1.1<br>All systems nominal.
+                    @elseif($listItems->isNotEmpty())
+                        {{ $listItems->first()->description ?? '' }}
                     @endif
                 </p>
             </div>
@@ -75,15 +98,11 @@
     <div class="flex justify-between text-lg uppercase border-t-2 border-[var(--pip-green)] pt-1" role="tablist">
         @foreach(['status', 'special', 'skills', 'perks', 'general'] as $cat)
             <a href="?tab={{ $cat }}" 
-               role="tab"
-               aria-selected="{{ $tab == $cat ? 'true' : 'false' }}"
-               class="focus:outline-none focus:bg-[var(--pip-dim)] focus:border focus:border-[var(--pip-green)]
-                      {{ $tab == $cat ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:text-[var(--pip-green)] hover:opacity-100' }}">
+               class="{{ $tab == $cat ? 'bg-[var(--pip-green)] text-black px-1' : 'opacity-70 hover:opacity-100 hover:text-[var(--pip-green)]' }}">
                {{ ucfirst($cat) }}
             </a>
         @endforeach
     </div>
-
 </div>
 
 <script>
@@ -92,13 +111,10 @@
             li.classList.remove('bg-[var(--pip-green)]', 'text-black');
             li.setAttribute('aria-selected', 'false');
         });
-
         el.classList.add('bg-[var(--pip-green)]', 'text-black');
         el.setAttribute('aria-selected', 'true');
         el.focus();
-
-        const desc = el.getAttribute('data-desc');
-        document.getElementById('stat-description').innerText = desc;
+        document.getElementById('stat-description').innerText = el.getAttribute('data-desc');
     }
 </script>
 @endsection
