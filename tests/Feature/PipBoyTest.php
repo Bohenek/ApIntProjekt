@@ -11,47 +11,74 @@ class PipBoyTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test 1: Czy strona główna przekierowuje na statystyki */
-    public function it_redirects_home_to_stats()
+    public function test_it_redirects_home_to_stats()
     {
         $response = $this->get('/');
         $response->assertRedirect(route('stats'));
     }
 
-    /** @test 2: Czy baza danych wyświetla bronie */
-    public function it_displays_weapons()
+    public function test_it_displays_weapons_correctly()
     {
-        Weapon::create(['name' => 'Fat Man', 'damage' => 1000, 'weight' => 30, 'value' => 2000]);
+        // Tworzymy broń
+        Weapon::create([
+            'name' => 'Fat Man', 
+            'damage' => 1000, 
+            'weight' => 30, 
+            'value' => 2000
+        ]);
         
-        $response = $this->get('/items');
-        $response->assertSee('Fat Man');
-        $response->assertSee('DMG: 1000');
-    }
-
-    /** @test 3: Czy admin ma dostęp do dashboardu */
-    public function admin_can_access_dashboard()
-    {
-        $admin = User::factory()->create(['is_admin' => true]);
+        $response = $this->get('/items?tab=weapons');
         
-        $response = $this->actingAs($admin)->get('/admin/dashboard');
         $response->assertStatus(200);
-        $response->assertSee('Witaj w panelu administratora');
+        $response->assertSee('Fat Man');
+        $response->assertSee('DAM'); 
+        $response->assertSee('1000');
     }
 
-    /** @test 4: Czy zwykły użytkownik NIE ma dostępu do dashboardu */
-    public function regular_user_cannot_access_dashboard()
+    public function test_admin_can_delete_item()
     {
-        $user = User::factory()->create(['is_admin' => false]);
-        
-        $response = $this->actingAs($user)->get('/admin/dashboard');
-        $response->assertStatus(403);
+        // 1. Tworzymy admina i przedmiot
+        $admin = User::factory()->create(['is_admin' => true]);
+        $weapon = Weapon::create(['name' => 'Test Gun', 'damage' => 10, 'weight' => 1, 'value' => 1]);
+
+        // 2. Wykonujemy akcję usuwania jako admin
+        // Używamy requestu DELETE na trasę items.delete
+        $response = $this->actingAs($admin)->delete(route('items.delete', $weapon->id), [
+            'type' => 'weapons'
+        ]);
+
+        // 3. Sprawdzamy czy przekierowało z powrotem (standardowe zachowanie kontrolera)
+        $response->assertRedirect();
+
+        // 4. Sprawdzamy czy przedmiot zniknął z bazy
+        $this->assertDatabaseMissing('weapons', ['id' => $weapon->id]);
     }
 
-    /** @test 5: Czy widoki zawierają elementy dostępności (role/aria) */
-    public function pages_contain_accessibility_elements()
+    public function test_regular_user_cannot_delete_item()
+    {
+        // 1. Tworzymy zwykłego usera i przedmiot
+        $user = User::factory()->create(['is_admin' => false]);
+        $weapon = Weapon::create(['name' => 'Admin Gun', 'damage' => 999, 'weight' => 1, 'value' => 1]);
+
+        // 2. Próbujemy usunąć jako zwykły user
+        $response = $this->actingAs($user)->delete(route('items.delete', $weapon->id), [
+            'type' => 'weapons'
+        ]);
+
+        // 3. Oczekujemy błędu 403 (Forbidden) - tak ustawiliśmy w kontrolerze
+        $response->assertStatus(403);
+
+        // 4. Upewniamy się, że przedmiot NADAL jest w bazie
+        $this->assertDatabaseHas('weapons', ['id' => $weapon->id]);
+    }
+
+    public function test_pages_contain_accessibility_elements()
     {
         $response = $this->get('/stats');
-        // Sprawdzamy czy istnieje przycisk do zmiany kontrastu
-        $response->assertSee('Tryb dla niedowidzących');
+        
+        // Sprawdzamy nowy tekst przycisku z layoutu
+        $response->assertSee('High Contrast');
+        // Sprawdzamy czy przycisk ma odpowiedni atrybut ARIA
+        $response->assertSee('aria-label="Przełącz tryb wysokiego kontrastu"', false);
     }
 }
